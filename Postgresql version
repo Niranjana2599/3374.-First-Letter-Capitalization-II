@@ -1,0 +1,29 @@
+WITH cte AS NOT MATERIALIZED (
+    SELECT 
+        content_id,
+        unnest(string_to_array(content_text, ' ')) AS word
+    FROM user_content
+),
+cte2 AS (
+    SELECT
+        content_id,
+        string_agg(
+            (
+                SELECT string_agg(
+                    upper(left(part, 1)) || lower(substr(part, 2)),
+                    '-'
+                )
+                FROM unnest(string_to_array(word, '-')) part
+            ),
+            ' '
+        ) AS converted_text
+    FROM cte
+    GROUP BY content_id
+)
+SELECT 
+    u.content_id,
+    u.content_text AS original_text,
+    c.converted_text
+FROM user_content u
+JOIN cte2 c USING (content_id)
+ORDER BY u.content_id;
