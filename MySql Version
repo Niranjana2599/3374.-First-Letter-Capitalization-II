@@ -1,0 +1,34 @@
+with recursive cte as (select content_id, 
+                    content_text, 
+                    length(content_text) as text_length
+            from user_content),
+cte2 as (select content_id, 
+                1 as id, 
+                substring(content_text,1,1) as word,
+                content_text, 
+                text_length
+        from cte
+union all
+select content_id, 
+        id+1 as id, 
+        substring(content_text,id+1,1) as word,
+        content_text, 
+        text_length
+from cte2
+where id <= text_length-1
+),
+cte3 as (select content_id,
+                content_text, 
+                text_length,id, 
+                word, 
+                lag(word,1,' ') over (partition by content_id order by id asc) as prev_word from cte2),
+cte4 as (select content_id, id,
+       content_text as original_text, 
+       prev_word,
+       (case when prev_word = ' ' or (prev_word = '-' and word between 'a' and 'z') then upper(word)
+             when prev_word between 'A' and 'Z' and word between 'A' and 'Z' then lower(word)
+             else word end) as next
+from cte3)
+select content_id, original_text, group_concat(next order by id separator '') as converted_text 
+from cte4
+group by content_id
